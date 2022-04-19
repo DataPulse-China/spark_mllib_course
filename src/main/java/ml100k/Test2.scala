@@ -72,8 +72,51 @@ object Test2 {
     println(matrixFactorizationModel.predict(196, 1093))
 
 
-    //03
-    context.stop()
+    /**
+     * 03针对电影推荐给用户 matrixFactorizationModel.recommendUsers
+     */
+    println(matrixFactorizationModel
+      //输入参数product,针对此product推荐给可能有兴趣的用户
+      .recommendUsers(464, 5).mkString("\n"))
+    //其意义是针对电影ID 464 推荐给用户153 推荐评分是13.203886960140531
+    //Rating(153,464,13.203886960140531)
+    //Rating(333,464,9.60028524712623)
+    //Rating(866,464,9.53347122435875)
+    //Rating(97,464,9.44858373374393)
+    //Rating(604,464,9.378408042553756)
 
+    /**
+     * 显示推荐的电影名称
+     */
+    /**
+     * 01创建电影id与名称的对照表
+     */
+    val itemRdd: RDD[String] = context.textFile("/home/rjxy/IdeaProjects/spark/spark_mllib_course/src/main/resources/ml-100k/u.item")
+    val movieitle: collection.Map[Int, String] = itemRdd
+      //使用map方法针对每一条数据进行转换；每一条数据以|符号分割字段，并以take取出前两个字段
+      .map(line => line.split("\\|").take(2))
+      //江上一个命令读取的2个字段进行转换，array(0).toInt 电影id   array(1)电影名称
+      .map(array => (array(0).toInt, array(1)))
+      //使用collectAsMap 创建movieTitle电影id / 名称 对照表
+      .collectAsMap()
+
+    /**
+     * 显示对照表的前5条数据 brightness
+     */
+    movieitle.take(5).foreach(println)
+
+    //获取制定的电影名称
+    println("获取指定的电影名称 146："+movieitle(146))
+
+
+    /**
+     * 显示前五条推荐的电影名称
+     */
+    matrixFactorizationModel.recommendProducts(196,5)
+      .map(rating => (rating.product,movieitle(rating.product),rating.rating)).foreach(println)
+
+
+
+    context.stop()
   }
 }
