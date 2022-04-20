@@ -1,15 +1,22 @@
 package datatype
 
+import breeze.linalg
+import breeze.linalg.{DenseMatrix, diag}
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.mllib.linalg.{Matrices, Matrix, SparseMatrix, Vector, Vectors}
-import org.apache.spark.mllib.linalg.distributed.{IndexedRow, IndexedRowMatrix, RowMatrix}
+import org.apache.spark.mllib.linalg.{DenseVector, Matrices, Matrix, SparseMatrix, Vector, Vectors}
+import org.apache.spark.mllib.linalg.distributed.{BlockMatrix, CoordinateMatrix, IndexedRow, IndexedRowMatrix, MatrixEntry, RowMatrix}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 object matrixDemo1 {
   def main(args: Array[String]): Unit = {
+
+    val value: linalg.DenseVector[Double] = breeze.linalg.DenseVector.ones[Double](10)
+    val value1: DenseMatrix[Double] = diag(value)
+    println(value1)
+
     SetLogger
-    val session: SparkSession = SparkSession.builder().master("local[*]").getOrCreate()
+    val session: SparkSession = SparkSession.builder().master("local[1]").getOrCreate()
 
     /**
      * 局部矩阵
@@ -43,7 +50,6 @@ object matrixDemo1 {
     //   * @param rowIndices the row index of the entry  行索引
     //   * @param values non-zero matrix entries in column major  非零矩阵在主列上
     val matris: Matrix = Matrices.sparse(3, 3, Array(0, 2, 1, 3), Array(0, 1, 2), Array(9, 6, 8))
-
 
 
     //强制转换
@@ -108,7 +114,9 @@ object matrixDemo1 {
      * 2.IndexedRowMatrix 索引行矩阵
      * IndexedRow 索引的行
      *
-     *    IndexedRowMatrix类似于 RowMatrix,但但行索引有意义
+     *    IndexedRowMatrix 类似于 RowMatrix,但但行索引有意义。它由带索引行的RDD存储，因此每行都由长整形索引和局部变量表示。
+     *    IndexRowMatrix 可以用 RDD[IndexRow]实例创建，其中IndexRow是一个基于(long,Vector)的包装器。
+     *    IndexRowMatrix 可以通过删除行索引转换为RowMatrix
      */
 
     //创建RDD[IndexedRow]
@@ -129,13 +137,85 @@ object matrixDemo1 {
     indexedRowMatrix.toRowMatrix().rows.foreach(println)
     println()
 
-    //3.CoordinateMatrix 坐标矩阵
+    /**
+     * 3.CoordinateMatrix 坐标矩阵
+     *
+     *    CoordinateMatrix 也是分布式矩阵,每个条目由RDD保存。每个条目是(i:Long,j:Long,value:Double)
+     * 的一个元组，其中i是行索引，j是列索引，value是条目值。
+     * CoordinateMatrix 只有在矩阵的两个维度都很大且矩阵非常稀疏时才能使用。CoordinateMatrix 可以由RDD[MaxtrixEntry]
+     * 实例创建，其中MatrixEntry是基于(Long,Long,Double)的包装器。可以通过调用 toIndexRowMatrix 将
+     * CoordinateMatrix 转换为具有稀疏行的 IndexRowMatrix。目前还不支持 CoordinateMatrix 的其他计算
+     */
+
+    //创建RDD[MatrixEntry]
+    val rddMatrixEntry: RDD[MatrixEntry] = session.sparkContext.parallelize(Seq(
+        MatrixEntry(0, 1, 1), MatrixEntry(0, 2, 2), MatrixEntry(0, 3, 3),
+        MatrixEntry(0, 4, 4), MatrixEntry(2, 3, 5), MatrixEntry(2, 4, 6),
+        MatrixEntry(3, 4, 7), MatrixEntry(4, 5, 8)
+    ))
+
+    //用RDD[MatrixEntry]创建 CoordinateMatrix
+    val coordinateMatrix: IndexedRowMatrix = new CoordinateMatrix(rddMatrixEntry).toIndexedRowMatrix()
+
+    //转换成IndexRowmatrix,其中的行 为稀疏向量
+    println("用RDD[MatrixEntry]创建  CoordinateMatrix  稀疏 >>\n")
+    coordinateMatrix.rows.foreach(println)
+    println("CoordinateMatrix  稠密矩阵 ")
+
+    plintMaxtrix(coordinateMatrix)
 
 
-    //4.BlockMatrix 块矩阵
+    /**
+     * 4.BlockMatrix 块矩阵
+     *
+     * 单词
+     *
+     *
+     */
+    //创建 RDD[MaxEntry]
+    val rddblockMatrixEntry: RDD[MatrixEntry] = session.sparkContext.parallelize(Seq(
+      MatrixEntry(0, 0, 1.2),MatrixEntry(0, 1, 1.3),MatrixEntry(0, 2, 1.4),
+      MatrixEntry(1, 0, 2.1),MatrixEntry(1, 1, 1.5),MatrixEntry(1, 2, 1.6),
+      MatrixEntry(6, 10, 3.7),MatrixEntry(2, 0, 1.7)
+    ))
+
+    //用RDD[MaxEntry]创建 CoordinateMatrix
+    val blockCoordinateMatrix: CoordinateMatrix = new CoordinateMatrix(rddblockMatrixEntry)
+
+    //将CoordinateMatrix 转换为 BlockMatrix
+    val blockMatrix: BlockMatrix = blockCoordinateMatrix.toBlockMatrix().cache()
+
+    //验证BlockMatrix的设置是否正确，当它是无效的，则抛出一个异常
+    println(blockMatrix.validate())
+    println("BlockMatrix toIndexedRowMatrix() 稀疏矩阵  打印")
+    blockMatrix.toIndexedRowMatrix().rows.sortBy(_.index).foreach((item: IndexedRow) => {
+      println(item.index +""+ item.vector)
+    })
+    println("BlockMatrix toIndexedRowMatrix() 稠密矩阵  打印")
+    val denseBlockMatrix: IndexedRowMatrix = blockMatrix.toIndexedRowMatrix()
+
+    plintMaxtrix(denseBlockMatrix)
+
+    println()
+    println(" 计算A^T A ")
+    val multiplyBlockMatrix: IndexedRowMatrix = blockMatrix.transpose.multiply(blockMatrix).toIndexedRowMatrix()
+
+
+
+    plintMaxtrix(multiplyBlockMatrix)
 
   }
 
+  /**
+   * 打印机 IndexedRowMatrix   "[ \t \t ]"
+   *
+   * @param IndexedRowMatrix
+   */
+  def plintMaxtrix(IndexedRowMatrix:IndexedRowMatrix){
+    IndexedRowMatrix.rows.sortBy(_.index).foreach((item: IndexedRow) => {
+      println(item.index + item.vector.toDense.values.mkString("[","\t\t","]"))
+    })
+  }
 
   def SetLogger = {
     Logger.getLogger("org").setLevel(Level.OFF)
