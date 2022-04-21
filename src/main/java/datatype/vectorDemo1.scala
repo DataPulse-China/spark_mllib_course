@@ -8,7 +8,7 @@ import org.apache.spark.sql.SparkSession
 object vectorDemo1 {
   def main(args: Array[String]): Unit = {
     /**
-     * 局部变量
+     * 局部向量
      *
      * 单词
      *

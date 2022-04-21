@@ -40,7 +40,7 @@ object Test2 {
     //lambda – 正则化参数 建议值0.01
 
     //矩阵分解模型
-    val matrixFactorizationModel: MatrixFactorizationModel = ALS.train(ratingsRDD, 10, 10, 0.01)
+    val matrixFactorizationModel: MatrixFactorizationModel = ALS. train(ratingsRDD, 10, 10, 0.01)
 
     /**
      * 01这里我们已经训练完成模型，接下来将使用此模型进行推荐
