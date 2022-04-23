@@ -212,6 +212,22 @@ object HypothesisTesting {
      *      pvalue < 0.05 独立性概率底  < 0.01 独立性概率很低    书值越大证明 某列和 矩阵列/特征列 不相关/独立的
      */
 
+    /**
+     * spark也支持Kolmogorov-Smirnov 检验，下面将展示具体的步骤：
+     */
+    val test: RDD[Double] = sc.textFile("/home/rjxy/IdeaProjects/spark/spark_mllib_course/src/main/resources/data/iris.data")
+      .map(_.split(","))
+      .map(p => p(0).toDouble)
+//    test
+    println(Statistics.kolmogorovSmirnovTest(test, "norm", 0, 1))
+
+    val mycdf: Double => Double = (p => p*2)
+
+    println(Statistics.kolmogorovSmirnovTest(test, mycdf))
+
+
+
+
   }
 }
 
