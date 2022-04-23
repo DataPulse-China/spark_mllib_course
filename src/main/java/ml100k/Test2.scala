@@ -92,11 +92,12 @@ object Test2 {
      * 01创建电影id与名称的对照表
      */
     val itemRdd: RDD[String] = context.textFile("/home/rjxy/IdeaProjects/spark/spark_mllib_course/src/main/resources/ml-100k/u.item")
-    val movieitle: collection.Map[Int, String] = itemRdd
+    val value1: RDD[(Int, String)] = itemRdd
       //使用map方法针对每一条数据进行转换；每一条数据以|符号分割字段，并以take取出前两个字段
       .map(line => line.split("\\|").take(2))
       //江上一个命令读取的2个字段进行转换，array(0).toInt 电影id   array(1)电影名称
       .map(array => (array(0).toInt, array(1)))
+    val movieitle: collection.Map[Int, String] = value1
       //使用collectAsMap 创建movieTitle电影id / 名称 对照表
       .collectAsMap()
 
