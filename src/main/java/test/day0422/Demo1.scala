@@ -1,17 +1,13 @@
 package test.day0422
 
 import breeze.linalg.functions.cosineDistance
-import breeze.linalg.operators.OpMulInner
 import breeze.linalg.{DenseVector, norm}
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkConf
 import org.apache.spark.mllib.evaluation.RegressionMetrics
-import org.apache.spark.mllib.linalg
-import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.recommendation.{ALS, MatrixFactorizationModel, Rating}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.catalyst.expressions.Sqrt
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
 /**
  * 协同过滤
@@ -203,15 +199,27 @@ object Demo1 {
     testPredictRes.take(10).foreach(println)
     println("输出测试数据集预测结果结束")
     import session.implicits._
-    val frame: DataFrame = testPredictRes.toDF().join(v2.toDS(),"col(rating)")
-//    new RegressionMetrics(frame.map(item => {
-//      item.fieldIndex("")
-//    }))
+    val frame: DataFrame = testPredictRes.toDF().as("a").join(v2.toDF().as("b"),Seq("user","product") )//col("a.user") === col("b.user") && col("a.product") === col("b.product")
+
+    val testDataSetPredictionResults: RegressionMetrics = new RegressionMetrics(
+      frame.rdd.map {
+        case Row(user, product, rating, rating2) => (rating.toString.toDouble, rating2.toString.toDouble)
+      }
+    )
+
+    println("testDataSetPredictionResults  ")
+    println("testDataSetPredictionResults  根据mllib的内置函数求  均方误差(MSE) 和 均方根误差(RMSE) 和")
+    println("testDataSetPredictionResults  均方误差   "+BigDecimal.valueOf(testDataSetPredictionResults.meanSquaredError))//均方误差
+    println("testDataSetPredictionResults  平均绝对误差   "+BigDecimal.valueOf(testDataSetPredictionResults.meanAbsoluteError))//平均绝对误差
+    println("testDataSetPredictionResults  方差   "+BigDecimal.valueOf(testDataSetPredictionResults.explainedVariance))//方差
+    println("testDataSetPredictionResults  均方根误差   "+BigDecimal.valueOf(testDataSetPredictionResults.rootMeanSquaredError))//均方根误差
+
+
 
 //    cosineDistance.cosineDistanceFromDotProductAndNorm
 
 
-    //根据mllib的内置函数求  均方误差(MSE) 和 均方根误差(RMSE) 和 均方差(Standard Deviation)
+      //根据mllib的内置函数求 均方误差(MSE) 和 均方根误差(RMSE) 和 均方差(Standard Deviation)
 
     //回归指标
     val regressionMetrics = new RegressionMetrics(
