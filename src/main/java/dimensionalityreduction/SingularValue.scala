@@ -58,10 +58,10 @@ object SingularValue {
      *
      * 准备好一个矩阵，这里我们采用一个简单的文件a.mat来存储一个尺寸为(4,9)的矩阵，其内容如下：
      *
-      1 2 3 4 5 6 7 8 9
-      5 6 7 8 9 0 8 6 7
-      9 0 8 7 1 4 3 2 1
-      6 4 2 1 3 4 2 1 5
+        1 2 3 4 5 6 7 8 9
+        5 6 7 8 9 0 8 6 7
+        9 0 8 7 1 4 3 2 1
+        6 4 2 1 3 4 2 1 5
 
         随后，将该文本文件读入成RDD[Vector]，并转换成RowMatrix，即可调用RowMatrix自带的computeSVD方法
       计算分解结果，这一结果保存在类型为SingularValueDecomposition的svd对象中：
@@ -106,9 +106,10 @@ object SingularValue {
      */
 
     val value1: SingularValueDecomposition[RowMatrix, Matrix] = matrix.computeSVD(3, computeU = true)
-
+  println("")
     println(value1.s)
     println(value1.V)
+    println(value1.U)
     val u: RowMatrix = value1.U
     val rows: RDD[linalg.Vector] = u.rows
     println(rows.foreach(println))

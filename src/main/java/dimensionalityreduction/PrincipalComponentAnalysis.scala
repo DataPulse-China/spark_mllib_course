@@ -13,6 +13,9 @@ import org.apache.spark.rdd.RDD
  * PrincipalComponentAnalysis 主成分分析
  *
  *    单词
+ *
+ *    dimensionality reduction  降维
+ *
  *      Principal 主要
  *      Component 成分
  *      Analysis 分析
@@ -31,6 +34,13 @@ import org.apache.spark.rdd.RDD
  */
 object PrincipalComponentAnalysis {
   def main(args: Array[String]): Unit = {
+
+    val l: Long = System.nanoTime()
+    println(l)
+    val i: Long = System.nanoTime()
+    println(i)
+    println( i - l + "   ======")
+
     /**
      * 2、PCA变换
      *
