@@ -87,6 +87,7 @@ object HypothesisTesting {
 
     println("适合度检验 Goodness fo   fit\n\n"+goodnessOfFitTest)
     println("适合度检验 Goodness fo   fit"+BigDecimal.valueOf(goodnessOfFitTest.pValue))
+    println("适合度检验 Goodness fo   fit"+goodnessOfFitTest.pValue)
     /**
      * 打印
      *     卡方检验摘要    Chi squared test summary:
