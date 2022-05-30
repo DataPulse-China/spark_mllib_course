@@ -29,9 +29,9 @@ object SparkFeatureTest {
     println("1111")
 //        getOne()
     println("2222")
-    //    getTwo()
+        getTwo()
     println("3333")
-//    getThree()
+    getThree()
     println("cosinedistance")
     getThreeCosineDistance()
   }
@@ -105,6 +105,7 @@ object SparkFeatureTest {
   }
 
   def getThree(): Unit ={
+
     val frame1: DataFrame = session.sql(
       """
         |select
@@ -259,43 +260,55 @@ object SparkFeatureTest {
     
     //使用 品牌索引器 训练数据
     val brandFrame: DataFrame = brandIndexermodel.transform(frame)
+
+    println("lllllllllllll")
+    brandFrame.show(10,false)
     
     //使用 厂商索引器 训练数据
     val indexFrame = mfgrIndexermodel.transform(brandFrame)
 
     indexFrame.show(false)
+    //
     val frame1 = encoder.setInputCol("mfgrIndex").setOutputCol("mfgrOneHota").setDropLast(false).transform(
       indexFrame
     )
     frame1.show(false)
-    //厂商转换之后那数据 brand  进行转换 one hot
+    //厂商转换之后那数据 brand  进行转换 one hot     k之1
     val encoderFrame: DataFrame = encoder.setInputCol("brandIndex").setOutputCol("brandOneHota").transform(frame1)
 
+    //自定义方法 进行 向量转数组  必须是linalg.Vector 类型 不然不匹配
     val a: UserDefinedFunction = session.udf.register("a", (i: linalg.Vector) => {
       i.toArray
     })
 
+    //同上（测试两种 不同）
     val function: UserDefinedFunction = udf((i: linalg.Vector) => {
         i.toArray
     })
 
-
-
+    //热编码转数组
     var frame2 = encoderFrame
       .withColumn("mfgrOneHota", function.apply(col("mfgrOneHota")))
       .withColumn("brandOneHota", a.apply(col("brandOneHota")))
 
+    //类别数量 索引 将上面转出的 StringIndex 索引 提取出来 [Mag1Mag2......] 这个顺序就是向量中的顺序 固定的 顺序不要东
     val brandindex: Array[(String, Int)] = brandIndexermodel.labels.zipWithIndex
     val mfgrindex: Array[(String, Int)] = mfgrIndexermodel.labels.zipWithIndex
+
     mfgrindex.foreach(println)
+
+    //厂商 将所有的类别数量 展开 成 column
     mfgrindex.foreach{
-      case (field, index)=> frame2 = frame2.withColumn(field,col("mfgrOneHota")(index))
+      case (field, index)=> frame2 =
+        frame2.withColumn(field,col("mfgrOneHota")(index))
     }
+    //品牌 将所有的类别数量 展开 成 column
     brandindex.foreach{
       case (field, index)=> frame2 = frame2.withColumn(field,col("brandOneHota")(index))
     }
 
-    frame2
+    frame2.show()
+    /*frame2
       .drop("name")
       .drop("type")
       .drop("container")
@@ -307,7 +320,7 @@ object SparkFeatureTest {
       .drop("brandOneHota")
       .sort(col("partkey"),col("size"))
       .write.saveAsTable("dwd.fact_part_machine_data")
-
+*/
 
   }
 }
