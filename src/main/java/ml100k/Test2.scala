@@ -116,6 +116,10 @@ object Test2 {
     matrixFactorizationModel.recommendProducts(196,5)
       .map(rating => (rating.product,movieitle(rating.product),rating.rating)).foreach(println)
 
+    val ratings: Array[Rating] = matrixFactorizationModel.recommendProducts(789, 10)
+
+    println("789")
+    ratings.foreach(println)
 
 
     context.stop()

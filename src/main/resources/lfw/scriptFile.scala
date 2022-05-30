@@ -1,0 +1,1 @@
+PICTURE:/home/rjxy/.config/tencent-qq//AppData/file//sendpix34.jpg
