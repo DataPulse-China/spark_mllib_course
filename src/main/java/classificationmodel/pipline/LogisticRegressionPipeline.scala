@@ -39,7 +39,7 @@ object LogisticRegressionPipeline {
       .setEvaluator(new RegressionEvaluator)
       //设置 估计器参数映射
       .setEstimatorParamMaps(paramGrid)
-      // 80% 的数据将用于训练，其余 20% 用于验证  80% of the data will be used for training and the remaining 20% for validation.
+      // 80% 的数据将用于训练，其余 20% 用于验证  80%  of the data will be used for training and the remaining 20% for validation.
       .setTrainRatio(0.8)
 
 
@@ -51,7 +51,7 @@ object LogisticRegressionPipeline {
     //val holdout = model.transform(test).select("prediction","label")
     val holdout = model.transform(dataFrame).select("prediction","label")
 
-    // have to do a type conversion for RegressionMetrics
+    //回归指标必须进行 类型转换 have to do a type conversion for RegressionMetrics
     val rm = new RegressionMetrics(holdout.rdd.map(x => (x(0).asInstanceOf[Double], x(1).asInstanceOf[Double])))
 
     logger.info("Test Metrics")

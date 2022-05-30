@@ -1,5 +1,6 @@
 package classificationmodel
 
+import org.apache.log4j.{Level, Logger}
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.classification.{ClassificationModel, LogisticRegressionModel, LogisticRegressionWithSGD, NaiveBayes, NaiveBayesModel, SVMModel, SVMWithSGD}
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
@@ -25,11 +26,14 @@ object AllInOneClassification {
 	def main(args: Array[String]) {
 		val sc = new SparkContext("local[2]", "Classification")
 
+		Logger.getLogger("org.apache.spark").setLevel(Level.OFF)
+
 		// get StumbleUpon dataset 'https://www.kaggle.com/c/stumbleupon'
-		val records = sc.textFile("/Users/manpreet.singh/Sandbox/codehub/github/machinelearning/breeze.io/src/main/scala/sparkMLlib/AllInOneClassification/train_noheader.tsv").map(line => line.split("\t"))
+		val records = sc.textFile("/home/rjxy/IdeaProjects/spark/spark_mllib_course/src/main/resources/stumbleupon/train_noheader.tsv")
+			.map(line => line.split("\t"))
 			//.map(records => (records(0), records(1), records(2)))
 
-		//records.foreach(println)
+		// records.foreach(println)
 
 
 		// 线性模型
@@ -126,7 +130,8 @@ object AllInOneClassification {
 		println(dtAccuracy)
 
     // ROC曲线和 AUC ROC curve and AUC
-		val metrics: Seq[(String, Double, Double)] = Seq(lrModel, svmModel).map { model =>
+		val metrics: Seq[(String, Double, Double)] = Seq(lrModel, svmModel).map {
+			model =>
 			//预测（分数）和标签
 			val scoreAndLabels: RDD[(Double, Double)] = data.map { point =>
 				(model.predict(point.features), point.label)
@@ -234,7 +239,7 @@ object AllInOneClassification {
 		val lrRocCats = lrMetricsScaledCats.areaUnderROC
 		println(f"${lrModelScaledCats.getClass.getSimpleName}\nAccuracy: ${lrAccuracyScaledCats * 100}%2.4f%%\nArea under PR: ${lrPrCats * 100.0}%2.4f%%\nArea under ROC: ${lrRocCats * 100.0}%2.4f%%")
 
-		// using the correct form of data
+		// using the correct form of data   k之一编码
 		val dataNB = records.map { r =>
 			val trimmed = r.map(_.replaceAll("\"", ""))
 			val label = trimmed(r.size - 1).toInt
@@ -257,14 +262,14 @@ object AllInOneClassification {
 		val nbRocCats = nbMetricsCats.areaUnderROC
 		println(f"${nbModelCats.getClass.getSimpleName}\nAccuracy: ${nbAccuracyCats * 100}%2.4f%%\nArea under PR: ${nbPrCats * 100.0}%2.4f%%\nArea under ROC: ${nbRocCats * 100.0}%2.4f%%")
 
-		// investigate the impact of model parameters on performance
-		// helper function to train a logistic regresson model
+		// 研究模型参数对性能辅助函数的影响以训练逻辑回归模型    investigate the impact of model parameters on performance
+		// 训练逻辑回归模型的辅助函数   helper function to train a logistic regresson model
 		def trainWithParams(input: RDD[LabeledPoint], regParam: Double, numIterations: Int, updater: Updater, stepSize: Double) = {
 			val lr = new LogisticRegressionWithSGD
 			lr.optimizer.setNumIterations(numIterations).setUpdater(updater).setRegParam(regParam).setStepSize(stepSize)
 			lr.run(input)
 		}
-		// helper function to create AUC metric
+		// 创建 AUC 指标的辅助函数    helper function to create AUC metric
 		def createMetrics(label: String, data: RDD[LabeledPoint], model: ClassificationModel) = {
 			val scoreAndLabels = data.map { point =>
 				(model.predict(point.features), point.label)
@@ -273,36 +278,38 @@ object AllInOneClassification {
 			(label, metrics.areaUnderROC)
 		}
 
-		// cache the data to increase speed of multiple runs agains the dataset
+		// 缓存数据以提高针对数据集的多次运行速度  cache the data to increase speed of multiple runs agains the dataset
 		scaledDataCats.cache
-		// num iterations
+
+		//不同的迭代次数 num iterations
 		val iterResults = Seq(1, 5, 10, 50).map { param =>
 			val model = trainWithParams(scaledDataCats, 0.0, param, new SimpleUpdater, 1.0)
 			createMetrics(s"$param iterations", scaledDataCats, model)
 		}
 		iterResults.foreach { case (param, auc) => println(f"$param, AUC = ${auc * 100}%2.2f%%") }
 
-		// step size
+		//不同的步长 step size
 		val stepResults = Seq(0.001, 0.01, 0.1, 1.0, 10.0).map { param =>
 			val model = trainWithParams(scaledDataCats, 0.0, numIterations, new SimpleUpdater, param)
 			createMetrics(s"$param step size", scaledDataCats, model)
 		}
 		stepResults.foreach { case (param, auc) => println(f"$param, AUC = ${auc * 100}%2.2f%%") }
 
-		// regularization
+		//不同的正则化参数 regularization
 		val regResults = Seq(0.001, 0.01, 0.1, 1.0, 10.0).map { param =>
 			val model = trainWithParams(scaledDataCats, param, numIterations, new SquaredL2Updater, 1.0)
 			createMetrics(s"$param L2 regularization parameter", scaledDataCats, model)
 		}
 		regResults.foreach { case (param, auc) => println(f"$param, AUC = ${auc * 100}%2.2f%%") }
 
+
 		def trainDTWithParams(input: RDD[LabeledPoint], maxDepth: Int, impurity: Impurity) = {
 			DecisionTree.train(input, Algo.Classification, impurity, maxDepth)
 		}
 
-		// investigate tree depth impact for Entropy impurity
+		//研究熵杂质的树深度影响 investigate tree depth impact for Entropy impurity
 		val dtResultsEntropy = Seq(1, 2, 3, 4, 5, 10, 20).map { param =>
-			val model = trainDTWithParams(data, param, Entropy)
+			val model: DecisionTreeModel = trainDTWithParams(data, param, Entropy)
 			val scoreAndLabels = data.map { point =>
 				val score = model.predict(point.features)
 				(if (score > 0.5) 1.0 else 0.0, point.label)
@@ -310,9 +317,10 @@ object AllInOneClassification {
 			val metrics = new BinaryClassificationMetrics(scoreAndLabels)
 			(s"$param tree depth", metrics.areaUnderROC)
 		}
+
 		dtResultsEntropy.foreach { case (param, auc) => println(f"$param, AUC = ${auc * 100}%2.2f%%") }
 
-		// investigate tree depth impact for Gini impurity
+		// 研究 Gini(基尼) 杂质的树深度影响 investigate tree depth impact for Gini impurity
 		val dtResultsGini = Seq(1, 2, 3, 4, 5, 10, 20).map { param =>
 			val model = trainDTWithParams(data, param, Gini)
 			val scoreAndLabels = data.map { point =>
@@ -324,12 +332,14 @@ object AllInOneClassification {
 		}
 		dtResultsGini.foreach { case (param, auc) => println(f"$param, AUC = ${auc * 100}%2.2f%%") }
 
-		// investigate Naive Bayes parameters
+		// 研究朴素贝叶斯参数  investigate Naive Bayes parameters
 		def trainNBWithParams(input: RDD[LabeledPoint], lambda: Double) = {
-			val nb = new NaiveBayes
+			val nb = new NaiveBayes()
+			//设置平滑参数。默认值：1.0。
 			nb.setLambda(lambda)
 			nb.run(input)
 		}
+		//nb.setLambda(lambda) (0.001, 0.01, 0.1, 1.0, 10.0)
 		val nbResults = Seq(0.001, 0.01, 0.1, 1.0, 10.0).map { param =>
 			val model = trainNBWithParams(dataNB, param)
 			val scoreAndLabels = dataNB.map { point =>
@@ -340,15 +350,17 @@ object AllInOneClassification {
 		}
 		nbResults.foreach { case (param, auc) => println(f"$param, AUC = ${auc * 100}%2.2f%%") }
 
-		// illustrate cross-validation
-		// create a 60% / 40% train/test data split
+		// 说明 交叉验证  illustrate cross-validation
+		// 创建一个 60% 40% 的 traintest 数据拆分 create a 60% / 40% train/test data split
 		val trainTestSplit = scaledDataCats.randomSplit(Array(0.6, 0.4), 123)
 		val train = trainTestSplit(0)
 		val test = trainTestSplit(1)
-		// now we train our model using the 'train' dataset, and compute predictions on unseen 'test' data
-		// in addition, we will evaluate the differing performance of regularization on training and test datasets
+		// 现在我们使用“train”数据集训练我们的模型，并在看不见的“test”数据上计算预测  now we train our model using the 'train' dataset, and compute predictions on unseen 'test' data
+		//此外，我们将评估正则化在训练和测试数据集上的不同性能 in addition, we will evaluate the differing performance of regularization on training and test datasets
 		val regResultsTest = Seq(0.0, 0.001, 0.0025, 0.005, 0.01).map { param =>
+			//逻辑回归模型
 			val model = trainWithParams(train, param, numIterations, new SquaredL2Updater, 1.0)
+			//创建 AUC 指标的辅助函数
 			createMetrics(s"$param L2 regularization parameter", test, model)
 		}
 		regResultsTest.foreach { case (param, auc) => println(f"$param, AUC = ${auc * 100}%2.6f%%") }

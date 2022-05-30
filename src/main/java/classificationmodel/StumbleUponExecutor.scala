@@ -1,7 +1,7 @@
 package classificationmodel
 
-import classificationmodel.pipline.LogisticRegressionPipeline
-import org.apache.log4j.Logger
+import classificationmodel.pipline.{DecisionTreePipeline, LogisticRegressionPipeline, NaiveBayesPipeline}
+import org.apache.log4j.{Level, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.sql.functions._
@@ -16,8 +16,13 @@ object StumbleUponExecutor {
   @transient lazy val logger = Logger.getLogger(getClass.getName)
 
   def main(args: Array[String]) {
+
+    logger.setLevel(Level.OFF)
+
+
     val conf: SparkConf = SparkCommonUtils.createSparkConf("StumbleUpon")
     val sc = new SparkContext(conf)
+    sc.setLogLevel("ERROR")
 
     // 创建 sql 上下文 create sql context
     val sqlContext = new SQLContext(sc)
@@ -58,7 +63,7 @@ object StumbleUponExecutor {
       .withColumn("label", df("label").cast("double"))
     df1.printSchema()
 
-    // 用户定义的清理函数？  user defined function for cleanup of ?
+    // 用户定义的清理函数 ？  user defined function for cleanup of ?
     val replacefunc = udf {(x:Double) => if(x == "?") 0.0 else x}
 
     val df2 = df1.withColumn("avglinksize", replacefunc(df1("avglinksize")))
@@ -132,7 +137,7 @@ object StumbleUponExecutor {
 
 //    case "GBT" => GradientBoostedTreePipeline.gradientBoostedTreePipeline(vectorAssembler, dataFrame)
 
-//    case "NB" => NaiveBayesPipeline.naiveBayesPipeline(vectorAssembler, dataFrame)
+    case "NB" => NaiveBayesPipeline.naiveBayesPipeline(vectorAssembler, dataFrame)
 
 //    case "SVM" => SVMPipeline.svmPipeline(sparkContext)
   }
@@ -141,6 +146,7 @@ object StumbleUponExecutor {
     // user defined function for cleanup of ?
     val replacefunc = udf {(x:Double) => if(x < 0) 0.0 else x}
 
+    //因为朴素贝叶斯所需参数不能有 负数 所以提前进行转换
     val df5 = dataFrame.withColumn("avglinksize", replacefunc(dataFrame("avglinksize")))
       .withColumn("commonlinkratio_1", replacefunc(dataFrame("commonlinkratio_1")))
       .withColumn("commonlinkratio_2", replacefunc(dataFrame("commonlinkratio_2")))

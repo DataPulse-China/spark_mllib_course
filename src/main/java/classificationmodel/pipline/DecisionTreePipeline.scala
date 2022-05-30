@@ -1,5 +1,4 @@
-package classificationmodel
-
+package classificationmodel.pipline
 
 import org.apache.log4j.Logger
 import org.apache.spark.ml.classification.DecisionTreeClassifier
@@ -24,13 +23,15 @@ object DecisionTreePipeline {
     // 设置管道
     val stages: ArrayBuffer[PipelineStage] = new mutable.ArrayBuffer[PipelineStage]()
 
+    //建立索引
     val labelIndexer: StringIndexer = new StringIndexer()
       .setInputCol("label")
       .setOutputCol("indexedLabel")
 
+    //阶段管道中 + 索引器
     stages += labelIndexer
 
-    //
+    //决策树分类器
     val dt: DecisionTreeClassifier = new DecisionTreeClassifier()
       .setFeaturesCol(vectorAssembler.getOutputCol)
       .setLabelCol("indexedLabel")
@@ -41,6 +42,7 @@ object DecisionTreePipeline {
       .setCacheNodeIds(false)
       .setCheckpointInterval(10)
 
+    //阶段管道中
     stages += vectorAssembler
     stages += dt
     val pipeline: Pipeline = new Pipeline().setStages(stages.toArray)
@@ -52,9 +54,12 @@ object DecisionTreePipeline {
     val elapsedTime: Double = (System.nanoTime() - startTime) / 1e9
     println(s"Training time: $elapsedTime seconds")
 
-    //val holdout = model.transform(test).select("prediction","label")
-    val holdout: DataFrame = model.transform(dataFrame).select("prediction","label")
+    val frame = model.transform(dataFrame)
 
+    println("ssssssssssss")
+    frame.show(false)
+    //val holdout = model.transform(test).select("prediction","label")
+    val holdout: DataFrame = frame.select("prediction","label")
 
 
     // 选择（预测，真实标签）并计算测试误差
